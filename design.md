@@ -1,47 +1,50 @@
-# 🌾 Kisan-Niti: AI-Powered Agricultural Scheme Assistant
+# 🏗️ System Design: Kisan-Niti
 
-> **Mission:** Bridging the gap between complex government policy and the Indian farmer using Generative AI.
+## 1. 📐 High-Level Architecture
+The system follows a **Serverless RAG (Retrieval-Augmented Generation)** architecture entirely hosted on AWS. It decouples the frontend from the heavy AI processing to ensure scalability and cost-efficiency.
 
----
-
-## 1. 🚩 Problem Statement
-Indian farmers struggle to access critical government schemes (subsidies, insurance, loans) because the information is locked in complex, lengthy PDF documents often available only in English or formal Hindi. 
-
-* **The Pain Point:** "Information Asymmetry" leads to millions of rupees in unclaimed benefits.
-* **The Gap:** Farmers rely on middlemen or word-of-mouth, which is often inaccurate.
-
-## 2. 💡 Proposed Solution
-**Kisan-Niti** is a Generative AI-powered chatbot that acts as a 24/7 personal assistant for farmers. It uses **Retrieval-Augmented Generation (RAG)** to read official government scheme documents and answer farmer queries in simple, actionable language.
+**Logic Flow:**
+`User Query` ➡️ `Frontend` ➡️ `AWS API Gateway` ➡️ `Lambda` ➡️ `Amazon Bedrock` ➡️ `Response`
 
 ---
 
-## 3. 🛠️ Functional Requirements
+## 2. 🧩 Component Architecture
 
-### **User Interface (Frontend)**
-* **Chat Interface:** A clean, WhatsApp-style chat window where users can type queries (e.g., *"How do I apply for PM-KISAN?"*).
-* **Language Support:** The system must process queries in **English** and **Hindi** (MVP phase).
-* **Voice Input (Optional):** A microphone button to accept voice queries for accessibility.
+### **A. Data Layer (The Knowledge Base)**
+* **Storage:** **Amazon S3** stores the raw PDF files (Government Schemes).
+* **Vector Database:** **Amazon OpenSearch Serverless** (managed via Bedrock) stores the vector embeddings of the text.
+* **Ingestion Pipeline:** **Amazon Bedrock Knowledge Base** automatically syncs data from S3, chunks the text, and converts it to vectors using **Amazon Titan Embeddings v2**.
 
-### **Core AI Features (Backend)**
-* **Document Ingestion:** The system must ingest and index PDF documents of government schemes (e.g., *Pradhan Mantri Fasal Bima Yojana*).
-* **Contextual Search:** The system must retrieve the most relevant sections of the schemes based on the user's query.
-* **Fact-Based Generation:** The system must generate summaries based *only* on the provided documents to prevent "hallucinations."
-* **Source Citation:** The AI should cite which scheme document the information came from.
+### **B. Intelligence Layer (The Brain)**
+* **Model:** **Anthropic Claude 3 Sonnet** (via Amazon Bedrock).
+* **Reasoning:** The model receives the user query + relevant chunks from the vector store and generates a simplified answer.
 
----
+### **C. Application Layer (The Logic)**
+* **Backend:** **AWS Lambda** functions (Python) act as the middleware. They take the user input from the frontend, call the `RetrieveAndGenerate` API of Amazon Bedrock, and return the response.
+* **API Management:** **Amazon API Gateway** exposes the Lambda function as a REST API endpoint.
 
-## 4. ⚙️ Non-Functional Requirements
-* **Accuracy:** The model must prioritize factual accuracy over creativity.
-* **Latency:** Responses should be generated within **5-7 seconds**.
-* **Scalability:** The architecture must handle multiple concurrent users using serverless components.
-* **Data Privacy:** User queries should not be stored permanently for training purposes without consent.
+### **D. Presentation Layer (The UI)**
+* **Frontend:** A lightweight web application (built with Streamlit or React) hosted on **AWS Amplify**.
 
 ---
 
-## 5. ☁️ AWS Service Requirements
-| Service | Purpose |
+## 3. 🔄 Data Flow Diagram
+1.  **Upload:** Admin uploads `PM-KISAN.pdf` to the S3 Bucket.
+2.  **Sync:** Bedrock Knowledge Base syncs the file ➡️ creates embeddings ➡️ stores in OpenSearch.
+3.  **Query:** Farmer asks *"What is the subsidy for tractors?"*
+4.  **Retrieve:** Bedrock searches the vector store for *"tractor subsidy"* context.
+5.  **Generate:** Claude 3 receives the search results and drafts a simplified response in the requested language.
+6.  **Deliver:** The response is sent back to the user app via API Gateway.
+
+---
+
+## 4. 💻 Tech Stack Summary
+
+| Component | Technology |
 | :--- | :--- |
-| **Amazon Bedrock** | Access to Foundation Models (Claude 3 Sonnet) & Knowledge Bases. |
-| **Amazon S3** | Storage for source PDF documents. |
-| **AWS Lambda** | Serverless compute to handle backend logic and API requests. |
-| **Amazon Titan Embeddings** | To convert text into vector embeddings for search. |
+| **Cloud Provider** | AWS (Amazon Web Services) |
+| **LLM (Model)** | Claude 3 Sonnet (via Bedrock) |
+| **Embeddings** | Titan Embeddings G1 - Text |
+| **Storage** | Amazon S3 |
+| **Compute** | AWS Lambda (Serverless) |
+| **Frontend** | Streamlit (Python) |
